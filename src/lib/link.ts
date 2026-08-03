@@ -116,5 +116,6 @@ export const toRelayReviews = (url: string) => `/relays/${encodeURIComponent(url
 export const toMuteList = () => '/mutes'
 export const toRizful = () => '/rizful'
 export const toBookmarks = () => '/bookmarks'
+export const toMyReactions = () => '/reactions'
 export const toPending = () => '/pending'
 export const toNjump = (id: string) => `https://njump.me/${id}`

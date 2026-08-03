@@ -8,7 +8,14 @@ import { Separator } from '@/components/ui/separator'
 import { SimpleUserAvatar } from '@/components/UserAvatar'
 import { SimpleUsername } from '@/components/Username'
 import PrimaryPageLayout from '@/layouts/PrimaryPageLayout'
-import { toBookmarks, toProfile, toRelaySettings, toSettings, toWallet } from '@/lib/link'
+import {
+  toBookmarks,
+  toMyReactions,
+  toProfile,
+  toRelaySettings,
+  toSettings,
+  toWallet
+} from '@/lib/link'
 import { cn } from '@/lib/utils'
 import { useSecondaryPage } from '@/PageManager'
 import { useNostr } from '@/providers/NostrProvider'
@@ -16,6 +23,7 @@ import {
   ArrowDownUp,
   Bookmark,
   ChevronRight,
+  Heart,
   LogOut,
   Server,
   Settings,
@@ -75,6 +83,9 @@ const MePage = forwardRef((_, ref) => {
         </Item>
         <Item onClick={() => push(toRelaySettings())}>
           <Server /> {t('Relays')}
+        </Item>
+        <Item onClick={() => push(toMyReactions())}>
+          <Heart /> {t('My reactions')}
         </Item>
         <Item onClick={() => push(toBookmarks())}>
           <Bookmark /> {t('Bookmarks')}
