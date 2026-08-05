@@ -301,6 +301,10 @@ export default {
       'Trusted users include people you follow and people they follow.',
     Continue: 'Continue',
     'Successfully updated mute list': 'Successfully updated mute list',
+    'Unable to decrypt your private mute list, no changes were made':
+      'Unable to decrypt your private mute list, no changes were made',
+    'Your signer does not support encryption, private mutes are unavailable':
+      'Your signer does not support encryption, private mutes are unavailable',
     'No pubkeys found from {url}': 'No pubkeys found from {{url}}',
     'Translating...': 'Translating...',
     Translate: 'Translate',
