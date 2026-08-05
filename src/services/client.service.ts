@@ -911,7 +911,12 @@ class ClientService extends EventTarget {
     pubkey: string,
     nip04Decrypt: undefined | ((pubkey: string, content: string) => Promise<string>),
     forceUpdate: boolean | NostrEvent = false
-  ): Promise<{ list: TMutedList; event: NostrEvent | null }> {
+  ): Promise<{
+    list: TMutedList
+    event: NostrEvent | null
+    privateTags: string[][]
+    decryptError: boolean
+  }> {
     const muteList: TMutedList = {
       public: [],
       private: []
@@ -928,30 +933,42 @@ class ClientService extends EventTarget {
       .filter((item) => item.label === 'pubkey')
       .map((item) => item.value)
 
-    if (result.event && nip04Decrypt) {
-      try {
-        const timeout = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('nip04Decrypt timeout')), 5000)
-        )
-        const plainText = await Promise.race([nip04Decrypt(pubkey, result.event.content), timeout])
-        const privateTags = z.array(z.array(z.string())).parse(JSON.parse(plainText))
+    let privateTags: string[][] = []
+    let decryptError = false
+    if (result.event && result.event.content) {
+      if (!nip04Decrypt) {
+        decryptError = true
+      } else {
+        try {
+          const timeout = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('nip04Decrypt timeout')), 5000)
+          )
+          const plainText = await Promise.race([
+            nip04Decrypt(pubkey, result.event.content),
+            timeout
+          ])
+          privateTags = z.array(z.array(z.string())).parse(JSON.parse(plainText))
 
-        for (let i = 0; i < privateTags.length; i++) {
-          const tag = privateTags[i]
-          if (tag[0] === 'p' && tag.length >= 2 && isHex32(tag[1])) {
-            muteList.private.push(tag[1])
+          for (let i = 0; i < privateTags.length; i++) {
+            const tag = privateTags[i]
+            if (tag[0] === 'p' && tag.length >= 2 && isHex32(tag[1])) {
+              muteList.private.push(tag[1])
+            }
           }
+        } catch (e) {
+          console.error('[mute] nip04Decrypt failed:', e)
+          privateTags = []
+          decryptError = true
         }
-      } catch (e) {
-        console.error('[mute] nip04Decrypt failed:', e)
       }
     }
 
     console.debug('[mute] fetchMuteList result:', {
       public: muteList.public.length,
-      private: muteList.private.length
+      private: muteList.private.length,
+      decryptError
     })
-    return { list: muteList, event: result.event ?? null }
+    return { list: muteList, event: result.event ?? null, privateTags, decryptError }
   }
 
   /** =========== Following favorite relays =========== */

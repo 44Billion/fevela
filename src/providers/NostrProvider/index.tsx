@@ -45,9 +45,11 @@ import {
   loadEmojis,
   loadFavoriteRelays,
   loadFollowsList,
+  loadMuteList,
   loadPins,
   loadRelayList
 } from '@nostr/gadgets/lists'
+import { store } from '@/services/store.service'
 import { AddressPointer } from '@nostr/tools/nip19'
 import { start, end, status } from '@/services/outbox.service'
 
@@ -219,18 +221,23 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
       loadBookmarks(account.pubkey).then(({ items }) => setBookmarkList(items))
       loadEmojis(account.pubkey).then(({ items }) => setUserEmojiList(items))
       loadPins(account.pubkey).then(({ items }) => setPinList(items))
-      ;(encryptionProbeRef.current ?? Promise.resolve(true)).then((encryptionSupported) => {
-        client
-          .fetchMuteList(account.pubkey, encryptionSupported ? nip04Decrypt : undefined)
-          .then(({ list, event }) => {
-            setMuteList(list)
-            setMuteListEvent(event)
-          })
-      })
       loadFavoriteRelays(account.pubkey).then(({ items }) => setFavoriteRelays(items))
 
       loadFollowsList(account.pubkey, [], true).then(async (list) => {
         setFollowList(list.items)
+
+        // Refresh the mute list from relays only after the follows list has settled:
+        // two concurrent force-refreshes of the same key can end up in the same
+        // dataloader batch and one of them never resolves
+        ;(encryptionProbeRef.current ?? Promise.resolve(true)).then((encryptionSupported) => {
+          client
+            .fetchMuteList(account.pubkey, encryptionSupported ? nip04Decrypt : undefined, true)
+            .then(({ list, event }) => {
+              setMuteList(list)
+              setMuteListEvent(event)
+            })
+            .catch((e) => console.error('[mute] failed to load mute list:', e))
+        })
 
         // initialize outbox manager for this user
         if (status.syncing && status.pubkey === account.pubkey) {
@@ -671,11 +678,17 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
   }
 
   const nip04Encrypt = async (pubkey: string, plainText: string) => {
-    return signer?.nip04Encrypt(pubkey, plainText) ?? ''
+    if (!signer) {
+      throw new Error('Not logged in')
+    }
+    return signer.nip04Encrypt(pubkey, plainText)
   }
 
   const nip04Decrypt = async (pubkey: string, cipherText: string) => {
-    return signer?.nip04Decrypt(pubkey, cipherText) ?? ''
+    if (!signer) {
+      throw new Error('Not logged in')
+    }
+    return signer.nip04Decrypt(pubkey, cipherText)
   }
 
   const checkLogin = async <T,>(cb?: () => T): Promise<T | void> => {
@@ -701,10 +714,13 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
   }
 
   const updateMuteListEvent = async (event: Event) => {
+    // Save the event directly instead of passing it as refreshStyle: gadgets forwards
+    // refreshStyle to loadRelayList, which would cache this event as the relay list
+    await loadMuteList(event.pubkey, [], null)
+    await store.saveEvent(event, { lastAttempt: dayjs().unix() })
     const { list } = await client.fetchMuteList(
       event.pubkey,
-      supportsEncryption ? nip04Decrypt : undefined,
-      event
+      supportsEncryption ? nip04Decrypt : undefined
     )
     setMuteList(list)
     setMuteListEvent(event)
