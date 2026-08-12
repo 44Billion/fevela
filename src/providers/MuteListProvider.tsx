@@ -30,6 +30,8 @@ export const useMuteList = () => {
   return context
 }
 
+type TMuteListFetchResult = Awaited<ReturnType<typeof client.fetchMuteList>>
+
 export function MuteListProvider({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation()
   const {
@@ -62,15 +64,45 @@ export function MuteListProvider({ children }: { children: React.ReactNode }) {
     [muteList]
   )
 
-  const publishNewMuteListEvent = async (list: TMutedList) => {
+  const fetchLatestMuteList = async (): Promise<TMuteListFetchResult> => {
+    const result = await client.fetchMuteList(
+      accountPubkey!,
+      supportsEncryption ? nip04Decrypt : undefined
+    )
+
+    // Never modify the list if the private part could not be read, we would wipe it
+    if (result.decryptError) {
+      throw new Error(t('Unable to decrypt your private mute list, no changes were made'))
+    }
+
+    if (!result.event) {
+      const confirmed = confirm(t('MuteListNotFoundConfirmation'))
+      if (!confirmed) {
+        throw new Error('Mute list not found')
+      }
+    }
+
+    return result
+  }
+
+  const publishNewMuteListEvent = async (current: TMuteListFetchResult, list: TMutedList) => {
     if (!accountPubkey) return
 
     console.debug('[mute] publishing:', { public: list.public.length, private: list.private.length })
 
-    const tags = list.public.map((pubkey) => ['p', pubkey])
-    const content = supportsEncryption
-      ? await nip04Encrypt(accountPubkey, JSON.stringify(list.private.map((pubkey) => ['p', pubkey])))
-      : ''
+    // Keep non-pubkey mutes (threads, hashtags, words) possibly set by other clients
+    const otherPublicTags = (current.event?.tags ?? []).filter((tag) => tag[0] !== 'p')
+    const tags = [...otherPublicTags, ...list.public.map((pubkey) => ['p', pubkey])]
+    const otherPrivateTags = current.privateTags.filter((tag) => tag[0] !== 'p')
+    const privateTags = [...otherPrivateTags, ...list.private.map((pubkey) => ['p', pubkey])]
+
+    let content = ''
+    if (privateTags.length > 0) {
+      if (!supportsEncryption) {
+        throw new Error(t('Your signer does not support encryption, private mutes are unavailable'))
+      }
+      content = await nip04Encrypt(accountPubkey, JSON.stringify(privateTags))
+    }
 
     if (dayjs().unix() === lastPublished) {
       await new Promise((resolve) => setTimeout(resolve, 1000))
@@ -85,31 +117,19 @@ export function MuteListProvider({ children }: { children: React.ReactNode }) {
     return event
   }
 
-  const checkMuteList = (muteList: TMutedList) => {
-    if (muteList.public.length === 0 && muteList.private.length === 0) {
-      const result = confirm(t('MuteListNotFoundConfirmation'))
-      if (!result) {
-        throw new Error('Mute list not found')
-      }
-    }
-  }
-
   const mutePublicly = async (pubkey: string) => {
     if (!accountPubkey || changing) return
 
     setChanging(true)
     try {
-      const { list: muteList } = await client.fetchMuteList(
-        accountPubkey,
-        supportsEncryption ? nip04Decrypt : undefined
-      )
-      checkMuteList(muteList)
+      const result = await fetchLatestMuteList()
+      const { list } = result
 
-      if (!muteList.public.includes(pubkey)) {
-        muteList.public.push(pubkey)
-        const idx = muteList.private.indexOf(pubkey)
-        if (idx !== -1) muteList.private.splice(idx, 1)
-        await publishNewMuteListEvent(muteList)
+      if (!list.public.includes(pubkey)) {
+        list.public.push(pubkey)
+        const idx = list.private.indexOf(pubkey)
+        if (idx !== -1) list.private.splice(idx, 1)
+        await publishNewMuteListEvent(result, list)
       }
     } catch (error) {
       console.error('[mute] mutePublicly failed:', error)
@@ -124,17 +144,18 @@ export function MuteListProvider({ children }: { children: React.ReactNode }) {
 
     setChanging(true)
     try {
-      const { list: muteList } = await client.fetchMuteList(
-        accountPubkey,
-        supportsEncryption ? nip04Decrypt : undefined
-      )
-      checkMuteList(muteList)
+      if (!supportsEncryption) {
+        throw new Error(t('Your signer does not support encryption, private mutes are unavailable'))
+      }
 
-      if (!muteList.private.includes(pubkey)) {
-        muteList.private.push(pubkey)
-        const idx = muteList.public.indexOf(pubkey)
-        if (idx !== -1) muteList.public.splice(idx, 1)
-        await publishNewMuteListEvent(muteList)
+      const result = await fetchLatestMuteList()
+      const { list } = result
+
+      if (!list.private.includes(pubkey)) {
+        list.private.push(pubkey)
+        const idx = list.public.indexOf(pubkey)
+        if (idx !== -1) list.public.splice(idx, 1)
+        await publishNewMuteListEvent(result, list)
       }
     } catch (error) {
       console.error('[mute] mutePrivately failed:', error)
@@ -149,26 +170,23 @@ export function MuteListProvider({ children }: { children: React.ReactNode }) {
 
     setChanging(true)
     try {
-      const { list: muteList } = await client.fetchMuteList(
-        accountPubkey,
-        supportsEncryption ? nip04Decrypt : undefined
-      )
-      checkMuteList(muteList)
+      const result = await fetchLatestMuteList()
+      const { list } = result
 
       let modified = false
-      const privateIdx = muteList.private.indexOf(pubkey)
+      const privateIdx = list.private.indexOf(pubkey)
       if (privateIdx !== -1) {
-        muteList.private.splice(privateIdx, 1)
+        list.private.splice(privateIdx, 1)
         modified = true
       }
-      const publicIdx = muteList.public.indexOf(pubkey)
+      const publicIdx = list.public.indexOf(pubkey)
       if (publicIdx !== -1) {
-        muteList.public.splice(publicIdx, 1)
+        list.public.splice(publicIdx, 1)
         modified = true
       }
 
       if (modified) {
-        await publishNewMuteListEvent(muteList)
+        await publishNewMuteListEvent(result, list)
       }
     } catch (error) {
       console.error('[mute] unmute failed:', error)

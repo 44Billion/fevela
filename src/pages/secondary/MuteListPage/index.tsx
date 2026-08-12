@@ -16,9 +16,9 @@ import { username } from '@/lib/event-metadata'
 
 const MuteListPage = forwardRef(({ index }: { index?: number }, ref) => {
   const { t } = useTranslation()
-  const { profile, pubkey } = useNostr()
-  const { getMutePubkeys, getMuteType, muteListEvent, supportsEncryption } = useMuteList()
-  const allPubkeys = useMemo(() => getMutePubkeys(), [pubkey])
+  const { profile } = useNostr()
+  const { mutePubkeySet, getMuteType, muteListEvent, supportsEncryption } = useMuteList()
+  const allPubkeys = useMemo(() => Array.from(mutePubkeySet), [mutePubkeySet])
   const publicPubkeys = useMemo(
     () => allPubkeys.filter((p) => getMuteType(p) === 'public'),
     [allPubkeys, getMuteType]

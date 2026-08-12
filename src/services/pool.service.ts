@@ -44,6 +44,10 @@ export class BoundedPool extends AbstractSimplePool {
     requests: { url: string; filter: Filter }[],
     params: SubscribeManyParams
   ): SubCloser {
+    // Gadgets' list fetchers can emit a literal "undefined" relay when they have no
+    // hardcoded relays to pick from; connecting to it is a guaranteed DNS failure
+    requests = requests.filter((r) => r.url && r.url !== 'undefined')
+
     const distinct = new Set(requests.map((r) => r.url)).size
     if (distinct > this.subscriptionRelayBudget) {
       const compressed = compressSubRequests(requests, this.subscriptionRelayBudget)

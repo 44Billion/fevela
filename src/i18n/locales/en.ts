@@ -301,6 +301,10 @@ export default {
       'Trusted users include people you follow and people they follow.',
     Continue: 'Continue',
     'Successfully updated mute list': 'Successfully updated mute list',
+    'Unable to decrypt your private mute list, no changes were made':
+      'Unable to decrypt your private mute list, no changes were made',
+    'Your signer does not support encryption, private mutes are unavailable':
+      'Your signer does not support encryption, private mutes are unavailable',
     'No pubkeys found from {url}': 'No pubkeys found from {{url}}',
     'Translating...': 'Translating...',
     Translate: 'Translate',
@@ -406,6 +410,12 @@ export default {
     'reposted your note': 'reposted your note',
     'zapped your note': 'zapped your note',
     'zapped you': 'zapped you',
+    'My reactions': 'My reactions',
+    'received your reaction': 'received your reaction',
+    'received your zap': 'received your zap',
+    'no more reactions': 'no more reactions',
+    'Filter by content...': 'Filter by content...',
+    Likes: 'Likes',
     'Mark as read': 'Mark as read',
     Report: 'Report',
     'Successfully report': 'Successfully reported',

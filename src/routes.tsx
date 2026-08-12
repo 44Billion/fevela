@@ -6,6 +6,7 @@ import FollowingListPage from './pages/secondary/FollowingListPage'
 import GeneralSettingsPage from './pages/secondary/GeneralSettingsPage'
 import GroupedProfilePage from './pages/secondary/GroupedProfilePage'
 import MuteListPage from './pages/secondary/MuteListPage'
+import MyReactionsPage from './pages/secondary/MyReactionsPage'
 import NoteListPage from './pages/secondary/NoteListPage'
 import NotePage from './pages/secondary/NotePage'
 import OthersRelaySettingsPage from './pages/secondary/OthersRelaySettingsPage'
@@ -45,6 +46,7 @@ const ROUTES = [
   { path: '/mutes', element: <MuteListPage /> },
   { path: '/rizful', element: <RizfulPage /> },
   { path: '/bookmarks', element: <BookmarkPage /> },
+  { path: '/reactions', element: <MyReactionsPage /> },
   { path: '/pending', element: <PendingPage /> }
 ]
 

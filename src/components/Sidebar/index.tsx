@@ -14,6 +14,7 @@ import ConversationsButton from './ConversationsButton'
 import NotificationsButton from './NotificationButton'
 import PostButton from './PostButton'
 import ProfileButton from './ProfileButton'
+import ReactionsButton from './ReactionsButton'
 import PendingButton from './PendingButton'
 import SearchButton from './SearchButton'
 import SettingsButton from './SettingsButton'
@@ -47,6 +48,7 @@ export default function PrimaryPageSidebar() {
         {pubkey && <ConversationsButton collapse={sidebarCollapse} />}
         {pubkey && <NotificationsButton collapse={sidebarCollapse} />}
         <PendingButton collapse={sidebarCollapse} />
+        {pubkey && <ReactionsButton collapse={sidebarCollapse} />}
         <BookmarkButton collapse={sidebarCollapse} />
         <SearchButton collapse={sidebarCollapse} />
         <RelaysButton collapse={sidebarCollapse} />
