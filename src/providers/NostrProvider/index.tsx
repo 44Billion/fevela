@@ -143,6 +143,7 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
   const [isReady, setIsReady] = useState(false)
   const [supportsEncryption, setSupportsEncryption] = useState(true)
   const encryptionProbeRef = useRef<Promise<boolean> | null>(null)
+  const silentLoginPendingRef = useRef(false)
 
   useEffect(() => {
     const init = async () => {
@@ -179,6 +180,36 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener('hashchange', handleHashChange)
     }
   }, [])
+
+  useEffect(() => {
+    if (!isInitialized || account || silentLoginPendingRef.current) return
+
+    const peekPublicKey = (
+      window.nostr as (typeof window.nostr & {
+        peekPublicKey?: () => Promise<string | undefined>
+      }) | undefined
+    )?.peekPublicKey
+    if (typeof peekPublicKey !== 'function') return
+
+    let cancelled = false
+    silentLoginPendingRef.current = true
+    void peekPublicKey
+      .call(window.nostr)
+      .then(async (pubkey) => {
+        if (cancelled || !pubkey || !/^[0-9a-f]{64}$/.test(pubkey)) return
+        const nip07Signer = new Nip07Signer()
+        await nip07Signer.init()
+        if (!cancelled) login(nip07Signer, { pubkey, signerType: 'nip-07' })
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        silentLoginPendingRef.current = false
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isInitialized, account])
 
   useEffect(() => {
     if (!account) return

@@ -1,0 +1,32 @@
+name: Publish Napp On Upstream Change
+
+on:
+  push:
+    branches: [napp]
+  schedule:
+    - cron: '18 0 * * *'
+  workflow_dispatch:
+    inputs:
+      upstream_branch:
+        description: Upstream branch override
+        required: false
+        type: string
+      force_publish:
+        description: Publish even when upstream has not changed
+        required: false
+        default: false
+        type: boolean
+      dry_run:
+        description: Rebase and build without publishing or pushing
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  sync:
+    permissions:
+      contents: write
+      issues: write
+    uses: 44Billion/napp-workflows/.github/workflows/sync-rebase-publish.yml@main
+    secrets:
+      NOSTR_SECRET_KEY: ${{ secrets.NOSTR_SECRET_KEY }}
